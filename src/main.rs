@@ -329,16 +329,14 @@ impl Transformation {
         Some(replace_unchecked(&self.new_pattern, &replacements))
     }
 
-    fn transform_all(&self, expr: &Expression) -> Vec<Vec<Token>> {
-        let mut all_transformations = Vec::new();
-
-        for index in 0..expr.len() {
+    fn transform_all<'a>(&'a self, expr: &'a Expression) -> impl Iterator<Item = Vec<Token>> + '_ {
+        (0..expr.len()).into_iter().flat_map(|index| {
             let sub_expr_len = expr[index].len();
             let sub_expr = &expr[index..index + sub_expr_len];
             let sub_expr_transformed = self.transform(sub_expr);
 
             if sub_expr_transformed.is_none() {
-                continue;
+                return None;
             }
 
             let sub_expr_transformed = sub_expr_transformed.unwrap();
@@ -351,10 +349,8 @@ impl Transformation {
                 new_transformation
             };
 
-            all_transformations.push(new_transformation);
-        }
-
-        all_transformations
+            Some(new_transformation)
+        })
     }
 }
 
