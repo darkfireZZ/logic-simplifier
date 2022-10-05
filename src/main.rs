@@ -79,18 +79,46 @@ fn var(ident: usize) -> Vec<Token> {
     vec![Token::variable(ident)]
 }
 
-fn sub_expressions(expr: &Expression) -> Vec<&[Token]> {
-    let mut sub_exprs = Vec::new();
+fn sub_expressions(expr: &Expression) -> impl Iterator<Item = &[Token]> {
+    //let mut sub_exprs = Vec::new();
 
-    let mut index = 1;
+    //let mut index = 1;
+
+    /*
     for _ in 0..expr[0].num_params() {
         let sub_expr_len = expr[index].len();
         let sub_expr = &expr[index..(index + sub_expr_len)];
         sub_exprs.push(sub_expr);
         index += sub_expr_len;
     }
+    */
 
-    sub_exprs
+    //sub_exprs
+
+    SubExpressions {
+        index: 1,
+        num_params: expr[0].num_params(),
+        expr,
+    }
+}
+
+struct SubExpressions<'a> {
+    index: usize,
+    num_params: usize,
+    expr: &'a Expression,
+}
+
+impl<'a> Iterator for SubExpressions<'a> {
+    type Item = &'a Expression;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let sub_expr_len = self.expr.get(self.index)?.len();
+        let new_index = self.index + sub_expr_len;
+        let sub_expr = &self.expr[self.index..new_index];
+        self.index = new_index;
+
+        Some(sub_expr)
+    }
 }
 
 fn contains_duplicate_variables(expr: &Expression) -> bool {
@@ -640,7 +668,7 @@ mod tests {
         #[test]
         fn a_and_b() {
             let a_and_b = gen_a_and_b();
-            let sub_exprs = sub_expressions(&a_and_b);
+            let sub_exprs = sub_expressions(&a_and_b).collect::<Vec<_>>();
 
             assert_eq!(sub_exprs.len(), 2);
 
