@@ -271,14 +271,8 @@ impl<'a> Matches<'a> {
     }
 }
 
-fn create_all_transformations(expr: &Expression, transformations: &Vec<Transformation>) -> Vec<Vec<Token>> {
-    let mut all_transformations = Vec::new();
-
-    for transformation in transformations {
-        all_transformations.extend(transformation.transform_all(expr));
-    }
-
-    all_transformations
+fn create_all_transformations<'a>(expr: &'a Expression, transformations: &'a Vec<Transformation>) -> impl Iterator<Item = Vec<Token>> + 'a {
+    transformations.into_iter().flat_map(|transformation| transformation.transform_all(expr))
 }
 
 fn incrementing_simplify(expr: &Expression, transformations: &Vec<Transformation>, max_depth: usize) -> Option<(Vec<Token>, Vec<Vec<Token>>)> {
