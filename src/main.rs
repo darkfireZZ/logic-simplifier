@@ -342,7 +342,8 @@ impl Transformation {
             let sub_expr_transformed = sub_expr_transformed.unwrap();
 
             let new_transformation = {
-                let mut new_transformation = expr[0..index].to_vec();
+                let mut new_transformation = Vec::with_capacity(expr.len() - sub_expr_len + sub_expr_transformed.len());
+                new_transformation.extend_from_slice(&expr[0..index]);
                 new_transformation.extend(sub_expr_transformed);
                 new_transformation.extend_from_slice(&expr[index + sub_expr_len..expr.len()]);
                 update_lengths(&mut new_transformation);
