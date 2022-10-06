@@ -1,5 +1,5 @@
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, iter::Map};
 
 fn main() {
     let ex = gen_exercise();
@@ -599,13 +599,35 @@ fn replace_unchecked<'a>(expr: &'a Expression, replacements: HashMap<usize, &'a 
     expr.into_iter().map(|token| token.ty.clone()).flat_map(move |token_type| {
         match token_type {
             TokenType::Variable(ident) => {
-                replacements.get(&ident).expect("unchecked").into_iter().map(|token| token.ty.clone()).collect::<Vec<_>>()
+                ReplaceUncheckedWorkaround::Variable(replacements.get(&ident).expect("unchecked").into_iter().map(extract_type))
             },
             TokenType::Operator(_) => {
-                vec![token_type]
+                ReplaceUncheckedWorkaround::Operator(Some(token_type))
             }
         }
     })
+}
+
+fn extract_type(token: &Token) -> TokenType {
+    token.ty.clone()
+}
+
+enum ReplaceUncheckedWorkaround<'a> {
+    Variable(Map<std::slice::Iter<'a, Token>, for<'r> fn(&'r Token) -> TokenType>),
+    Operator(Option<TokenType>),
+}
+
+impl<'a> Iterator for ReplaceUncheckedWorkaround<'a> {
+    type Item = TokenType;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Variable(iter) => iter.next(),
+            Self::Operator(token_type) => {
+                token_type.take()
+            },
+        }
+    }
 }
 
 fn update_lengths(tokens: &mut Vec<Token>) {
