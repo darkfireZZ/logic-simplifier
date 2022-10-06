@@ -627,34 +627,31 @@ fn replace_unchecked<'a>(
     replacements: HashMap<usize, &'a Expression>,
 ) -> impl Iterator<Item = TokenType> + 'a {
     expr.into_iter()
-        .flat_map(move |token_type| match token_type.ty {
+        .flat_map(move |token| match token.ty {
             TokenType::Variable(ident) => ReplaceUncheckedWorkaround::Variable(
                 replacements
                     .get(&ident)
                     .expect("unchecked")
                     .into_iter()
-                    .map(extract_type),
             ),
-            TokenType::Operator(_) => ReplaceUncheckedWorkaround::Operator(Some(token_type.ty.clone())),
-        })
-}
-
-fn extract_type(token: &Token) -> TokenType {
-    token.ty.clone()
+            TokenType::Operator(_) => {
+                ReplaceUncheckedWorkaround::Operator(Some(token))
+            }
+        }).map(|token| token.ty.clone())
 }
 
 enum ReplaceUncheckedWorkaround<'a> {
-    Variable(Map<std::slice::Iter<'a, Token>, for<'r> fn(&'r Token) -> TokenType>),
-    Operator(Option<TokenType>),
+    Variable(std::slice::Iter<'a, Token>),
+    Operator(Option<&'a Token>),
 }
 
 impl<'a> Iterator for ReplaceUncheckedWorkaround<'a> {
-    type Item = TokenType;
+    type Item = &'a Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Variable(iter) => iter.next(),
-            Self::Operator(token_type) => token_type.take(),
+            Self::Operator(token) => token.take(),
         }
     }
 }
