@@ -297,7 +297,7 @@ fn incrementing_simplify(
     max_depth: usize,
 ) -> Option<(Vec<Token>, Vec<Vec<Token>>)> {
     for depth in 0..=max_depth {
-        let result = simplify(expr.to_vec(), transformations, depth);
+        let result = simplify(expr, transformations, depth);
         if result.is_some() {
             return result;
         }
@@ -307,7 +307,7 @@ fn incrementing_simplify(
 }
 
 fn simplify(
-    expr: Vec<Token>,
+    expr: &Expression,
     transformations: &Vec<Transformation>,
     depth: usize,
 ) -> Option<(Vec<Token>, Vec<Vec<Token>>)> {
@@ -315,14 +315,14 @@ fn simplify(
         if contains_duplicate_variables(&expr) {
             return None;
         } else {
-            return Some((expr, Vec::new()));
+            return Some((expr.to_vec(), Vec::new()));
         }
     }
 
     let new_combinations = create_all_transformations(&expr, transformations);
 
     for combination in new_combinations {
-        let result = simplify(combination.clone(), transformations, depth - 1);
+        let result = simplify(&combination, transformations, depth - 1);
         if result.is_some() {
             return result.map(|(tokens, mut vec)| {
                 vec.push(combination);
