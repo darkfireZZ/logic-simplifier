@@ -627,8 +627,7 @@ fn replace_unchecked<'a>(
     replacements: HashMap<usize, &'a Expression>,
 ) -> impl Iterator<Item = TokenType> + 'a {
     expr.into_iter()
-        .map(|token| token.ty.clone())
-        .flat_map(move |token_type| match token_type {
+        .flat_map(move |token_type| match token_type.ty {
             TokenType::Variable(ident) => ReplaceUncheckedWorkaround::Variable(
                 replacements
                     .get(&ident)
@@ -636,7 +635,7 @@ fn replace_unchecked<'a>(
                     .into_iter()
                     .map(extract_type),
             ),
-            TokenType::Operator(_) => ReplaceUncheckedWorkaround::Operator(Some(token_type)),
+            TokenType::Operator(_) => ReplaceUncheckedWorkaround::Operator(Some(token_type.ty.clone())),
         })
 }
 
