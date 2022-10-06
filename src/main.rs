@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    iter::Map,
-};
+use std::collections::{HashMap, HashSet};
 
 fn main() {
     let ex = gen_exercise();
@@ -351,7 +348,7 @@ impl Transformation {
     fn transform<'a>(
         &'a self,
         expr: &'a Expression,
-    ) -> Option<impl Iterator<Item = TokenType> + '_> {
+    ) -> Option<impl Iterator<Item = &'a Token> + '_> {
         let replacements = self.old_pattern.matches(&expr)?.map;
         Some(replace_unchecked(&self.new_pattern, replacements))
     }
@@ -366,19 +363,14 @@ impl Transformation {
                 return None;
             }
 
-            let sub_expr_transformed = sub_expr_transformed.unwrap().map(|token_type| {
-                Token {
-                    ty: token_type,
-                    len: 1, // lengths have to be updated anyways
-                }
-            });
+            let sub_expr_transformed = sub_expr_transformed.unwrap();
 
             let new_transformation = {
                 // `expr.len() + sub_expr_len` leaves space for a subexpression twice as long as
                 // the previous one, this should be enough for most cases.
                 let mut new_transformation = Vec::with_capacity(expr.len() + sub_expr_len);
                 new_transformation.extend_from_slice(&expr[0..index]);
-                new_transformation.extend(sub_expr_transformed);
+                new_transformation.extend(sub_expr_transformed.map(|token| token.clone()));
                 new_transformation.extend_from_slice(&expr[index + sub_expr_len..expr.len()]);
                 update_lengths(&mut new_transformation);
                 new_transformation
@@ -625,19 +617,13 @@ mod transformations {
 fn replace_unchecked<'a>(
     expr: &'a Expression,
     replacements: HashMap<usize, &'a Expression>,
-) -> impl Iterator<Item = TokenType> + 'a {
-    expr.into_iter()
-        .flat_map(move |token| match token.ty {
-            TokenType::Variable(ident) => ReplaceUncheckedWorkaround::Variable(
-                replacements
-                    .get(&ident)
-                    .expect("unchecked")
-                    .into_iter()
-            ),
-            TokenType::Operator(_) => {
-                ReplaceUncheckedWorkaround::Operator(Some(token))
-            }
-        }).map(|token| token.ty.clone())
+) -> impl Iterator<Item = &'a Token> + 'a {
+    expr.into_iter().flat_map(move |token| match token.ty {
+        TokenType::Variable(ident) => ReplaceUncheckedWorkaround::Variable(
+            replacements.get(&ident).expect("unchecked").into_iter(),
+        ),
+        TokenType::Operator(_) => ReplaceUncheckedWorkaround::Operator(Some(token)),
+    })
 }
 
 enum ReplaceUncheckedWorkaround<'a> {
