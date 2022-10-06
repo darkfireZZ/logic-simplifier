@@ -1,18 +1,29 @@
-
-use std::{collections::{HashMap, HashSet}, iter::Map};
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Map,
+};
 
 fn main() {
     let ex = gen_exercise();
     let transformations = exercise_transformations();
-    
+
     let solution = incrementing_simplify(&ex, &transformations, 3).expect("solution can be found");
 
     println!("{:#?}", ex);
 }
 
-const AND: LogicOperator = LogicOperator { ident: "and", params: 2 };
-const OR: LogicOperator = LogicOperator { ident: "or", params: 2 };
-const NOT: LogicOperator = LogicOperator { ident: "not", params: 1 };
+const AND: LogicOperator = LogicOperator {
+    ident: "and",
+    params: 2,
+};
+const OR: LogicOperator = LogicOperator {
+    ident: "or",
+    params: 2,
+};
+const NOT: LogicOperator = LogicOperator {
+    ident: "not",
+    params: 1,
+};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum TokenType {
@@ -124,19 +135,20 @@ impl<'a> Iterator for SubExpressions<'a> {
 fn contains_duplicate_variables(expr: &Expression) -> bool {
     let mut set = HashSet::new();
 
-    !expr.into_iter().filter(|token| {
-        match token.ty {
+    !expr
+        .into_iter()
+        .filter(|token| match token.ty {
             TokenType::Variable(_) => true,
             TokenType::Operator(_) => false,
-        }
-    }).all(|variable| {
-        if set.contains(variable) {
-            false
-        } else {
-            set.insert(variable);
-            true
-        }
-    })
+        })
+        .all(|variable| {
+            if set.contains(variable) {
+                false
+            } else {
+                set.insert(variable);
+                true
+            }
+        })
 }
 
 fn gen_left_of_exercise() -> Vec<Token> {
@@ -205,9 +217,7 @@ struct Pattern {
 
 impl Pattern {
     fn new(pattern: Box<Expression>) -> Self {
-        Self {
-            pattern,
-        }
+        Self { pattern }
     }
 
     fn matches<'a, 'b>(&'a self, expr: &'b Expression) -> Option<Matches<'b>> {
@@ -220,19 +230,19 @@ impl Pattern {
         }
     }
 
-    fn matches_rec<'a, 'b>(pattern: &'a Expression, expr: &'b Expression, map: &mut HashMap<usize, &'b Expression>) -> bool {
+    fn matches_rec<'a, 'b>(
+        pattern: &'a Expression,
+        expr: &'b Expression,
+        map: &mut HashMap<usize, &'b Expression>,
+    ) -> bool {
         assert!(pattern.len() > 0);
 
         match pattern[0].ty {
-            TokenType::Variable(ident) => {
-                match map.get(&ident) {
-                    Some(&var_replacement) => {
-                        expr == var_replacement
-                    },
-                    None => {
-                        map.insert(ident, expr);
-                        true
-                    },
+            TokenType::Variable(ident) => match map.get(&ident) {
+                Some(&var_replacement) => expr == var_replacement,
+                None => {
+                    map.insert(ident, expr);
+                    true
                 }
             },
             TokenType::Operator(pattern_op) => {
@@ -241,20 +251,23 @@ impl Pattern {
                         if expr_op != pattern_op {
                             return false;
                         }
-                    },
+                    }
                     TokenType::Variable(_) => {
                         return false;
                     }
                 }
 
-                for (sub_pattern, sub_expression) in sub_expressions(pattern).into_iter().zip(sub_expressions(expr)) {
+                for (sub_pattern, sub_expression) in sub_expressions(pattern)
+                    .into_iter()
+                    .zip(sub_expressions(expr))
+                {
                     if !Self::matches_rec(sub_pattern, sub_expression, map) {
                         return false;
                     }
                 }
 
                 true
-            },
+            }
         }
     }
 }
@@ -265,17 +278,24 @@ struct Matches<'a> {
 
 impl<'a> Matches<'a> {
     fn new(map: HashMap<usize, &'a Expression>) -> Self {
-        Self {
-            map,
-        }
+        Self { map }
     }
 }
 
-fn create_all_transformations<'a>(expr: &'a Expression, transformations: &'a Vec<Transformation>) -> impl Iterator<Item = Vec<Token>> + 'a {
-    transformations.into_iter().flat_map(|transformation| transformation.transform_all(expr))
+fn create_all_transformations<'a>(
+    expr: &'a Expression,
+    transformations: &'a Vec<Transformation>,
+) -> impl Iterator<Item = Vec<Token>> + 'a {
+    transformations
+        .into_iter()
+        .flat_map(|transformation| transformation.transform_all(expr))
 }
 
-fn incrementing_simplify(expr: &Expression, transformations: &Vec<Transformation>, max_depth: usize) -> Option<(Vec<Token>, Vec<Vec<Token>>)> {
+fn incrementing_simplify(
+    expr: &Expression,
+    transformations: &Vec<Transformation>,
+    max_depth: usize,
+) -> Option<(Vec<Token>, Vec<Vec<Token>>)> {
     for depth in 0..=max_depth {
         let result = simplify(expr.to_vec(), transformations, depth);
         if result.is_some() {
@@ -286,7 +306,11 @@ fn incrementing_simplify(expr: &Expression, transformations: &Vec<Transformation
     None
 }
 
-fn simplify(expr: Vec<Token>, transformations: &Vec<Transformation>, depth: usize) -> Option<(Vec<Token>, Vec<Vec<Token>>)> {
+fn simplify(
+    expr: Vec<Token>,
+    transformations: &Vec<Transformation>,
+    depth: usize,
+) -> Option<(Vec<Token>, Vec<Vec<Token>>)> {
     if depth == 0 {
         if contains_duplicate_variables(&expr) {
             return None;
@@ -323,8 +347,11 @@ impl Transformation {
             new_pattern,
         }
     }
-    
-    fn transform<'a>(&'a self, expr: &'a Expression) -> Option<impl Iterator<Item = TokenType> + '_> {
+
+    fn transform<'a>(
+        &'a self,
+        expr: &'a Expression,
+    ) -> Option<impl Iterator<Item = TokenType> + '_> {
         let replacements = self.old_pattern.matches(&expr)?.map;
         Some(replace_unchecked(&self.new_pattern, replacements))
     }
@@ -595,17 +622,22 @@ mod transformations {
     }
 }
 
-fn replace_unchecked<'a>(expr: &'a Expression, replacements: HashMap<usize, &'a Expression>) -> impl Iterator<Item = TokenType> + 'a {
-    expr.into_iter().map(|token| token.ty.clone()).flat_map(move |token_type| {
-        match token_type {
-            TokenType::Variable(ident) => {
-                ReplaceUncheckedWorkaround::Variable(replacements.get(&ident).expect("unchecked").into_iter().map(extract_type))
-            },
-            TokenType::Operator(_) => {
-                ReplaceUncheckedWorkaround::Operator(Some(token_type))
-            }
-        }
-    })
+fn replace_unchecked<'a>(
+    expr: &'a Expression,
+    replacements: HashMap<usize, &'a Expression>,
+) -> impl Iterator<Item = TokenType> + 'a {
+    expr.into_iter()
+        .map(|token| token.ty.clone())
+        .flat_map(move |token_type| match token_type {
+            TokenType::Variable(ident) => ReplaceUncheckedWorkaround::Variable(
+                replacements
+                    .get(&ident)
+                    .expect("unchecked")
+                    .into_iter()
+                    .map(extract_type),
+            ),
+            TokenType::Operator(_) => ReplaceUncheckedWorkaround::Operator(Some(token_type)),
+        })
 }
 
 fn extract_type(token: &Token) -> TokenType {
@@ -623,9 +655,7 @@ impl<'a> Iterator for ReplaceUncheckedWorkaround<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Variable(iter) => iter.next(),
-            Self::Operator(token_type) => {
-                token_type.take()
-            },
+            Self::Operator(token_type) => token_type.take(),
         }
     }
 }
@@ -643,10 +673,10 @@ fn update_first_length(tokens: &mut [Token]) {
     match tokens[0].ty {
         TokenType::Variable(_) => {
             tokens[0].len = 1;
-        },
+        }
         TokenType::Operator(operator) => {
             update_first_length_operator(tokens, &operator);
-        },
+        }
     }
 }
 
@@ -658,7 +688,9 @@ fn update_first_length_operator(tokens: &mut [Token], operator: &LogicOperator) 
     for token in tokens.iter().skip(1) {
         match token.ty {
             TokenType::Variable(_) => (),
-            TokenType::Operator(op) => { required_params += op.params; },
+            TokenType::Operator(op) => {
+                required_params += op.params;
+            }
         }
         found_params += 1;
 
@@ -845,9 +877,13 @@ mod tests {
 
             let aa = op(AND, &[&a, &a]);
 
-            let allowed_transformations = vec![transformations::and_idempotence_expand(), transformations::and_idempotence_compact()];
+            let allowed_transformations = vec![
+                transformations::and_idempotence_expand(),
+                transformations::and_idempotence_compact(),
+            ];
 
-            let simplification = incrementing_simplify(&aa, &allowed_transformations, 1).expect("solution can be found");
+            let simplification = incrementing_simplify(&aa, &allowed_transformations, 1)
+                .expect("solution can be found");
 
             //assert_eq!(simplification, a);
         }
