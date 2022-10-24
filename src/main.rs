@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 
 fn main() {
     let ex = gen_exercise();
@@ -207,18 +207,35 @@ fn gen_a_or_b() -> Vec<Token> {
     a_or_b
 }
 
+fn count_num_variables(expr: &Expression) -> usize {
+    let mut set = HashSet::new();
+
+    for token in expr {
+        match token.ty {
+            TokenType::Variable(identifier) => { set.insert(identifier); },
+            TokenType::Operator(_) => (),
+        }
+    }
+
+    set.len()
+}
+
 #[derive(Debug)]
 struct Pattern {
     pattern: Box<Expression>,
+    num_variables: usize,
 }
 
 impl Pattern {
     fn new(pattern: Box<Expression>) -> Self {
-        Self { pattern }
+        Self {
+            num_variables: count_num_variables(&pattern),
+            pattern,
+        }
     }
 
     fn matches<'a, 'b>(&'a self, expr: &'b Expression) -> Option<Matches<'b>> {
-        let mut map = HashMap::new();
+        let mut map = Vec::new();
 
         if Self::matches_rec(&self.pattern, expr, &mut map) {
             Some(Matches::new(map))
@@ -230,15 +247,15 @@ impl Pattern {
     fn matches_rec<'a, 'b>(
         pattern: &'a Expression,
         expr: &'b Expression,
-        map: &mut HashMap<usize, &'b Expression>,
+        map: &mut Vec<Option<&'b Expression>>,
     ) -> bool {
         assert!(pattern.len() > 0);
 
         match pattern[0].ty {
-            TokenType::Variable(ident) => match map.get(&ident) {
-                Some(&var_replacement) => expr == var_replacement,
+            TokenType::Variable(ident) => match map[ident] {
+                Some(var_replacement) => expr == var_replacement,
                 None => {
-                    map.insert(ident, expr);
+                    map[ident] = Some(expr);
                     true
                 }
             },
@@ -270,11 +287,11 @@ impl Pattern {
 }
 
 struct Matches<'a> {
-    map: HashMap<usize, &'a Expression>,
+    map: Vec<Option<&'a Expression>>,
 }
 
 impl<'a> Matches<'a> {
-    fn new(map: HashMap<usize, &'a Expression>) -> Self {
+    fn new(map: Vec<Option<&'a Expression>>) -> Self {
         Self { map }
     }
 }
@@ -363,14 +380,12 @@ impl Transformation {
                 return None;
             }
 
-            let sub_expr_transformed = sub_expr_transformed.unwrap();
-
             let new_transformation = {
                 // `expr.len() + sub_expr_len` leaves space for a subexpression twice as long as
                 // the previous one, this should be enough for most cases.
                 let mut new_transformation = Vec::with_capacity(expr.len() + sub_expr_len);
                 new_transformation.extend_from_slice(&expr[0..index]);
-                new_transformation.extend(sub_expr_transformed.map(|token| token.clone()));
+                new_transformation.extend(sub_expr_transformed.unwrap().map(|token| token.clone()));
                 new_transformation.extend_from_slice(&expr[index + sub_expr_len..expr.len()]);
                 update_lengths(&mut new_transformation);
                 new_transformation
@@ -616,11 +631,11 @@ mod transformations {
 
 fn replace_unchecked<'a>(
     expr: &'a Expression,
-    replacements: HashMap<usize, &'a Expression>,
+    replacements: Vec<Option<&'a Expression>>,
 ) -> impl Iterator<Item = &'a Token> + 'a {
     expr.into_iter().flat_map(move |token| match token.ty {
         TokenType::Variable(ident) => ReplaceUncheckedWorkaround::Variable(
-            replacements.get(&ident).expect("unchecked").into_iter(),
+            replacements.get(ident).expect("unchecked").expect("variable is set").into_iter(),
         ),
         TokenType::Operator(_) => ReplaceUncheckedWorkaround::Operator(Some(token)),
     })
